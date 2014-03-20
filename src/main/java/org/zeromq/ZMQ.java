@@ -139,6 +139,28 @@ public class ZMQ {
      */
     @Deprecated
     public static final int DOWNSTREAM = PUSH;
+    
+    /**
+     * ZMQ Events
+     */
+    public static final int EVENT_CONNECTED = 1;
+    public static final int EVENT_DELAYED = 2;
+    public static final int EVENT_RETRIED = 4;
+
+    public static final int EVENT_LISTENING = 8;
+    public static final int EVENT_BIND_FAILED = 16;
+
+    public static final int EVENT_ACCEPTED = 32;
+    public static final int EVENT_ACCEPT_FAILED = 64;
+
+    public static final int EVENT_CLOSED = 128;
+    public static final int EVENT_CLOSE_FAILED = 256;
+    public static final int EVENT_DISCONNECTED = 512;
+    public static final int EVENT_MONITOR_STOPPED = 1024;
+
+    public static final int EVENT_ALL = EVENT_CONNECTED | EVENT_DELAYED | EVENT_RETRIED |
+            EVENT_LISTENING | EVENT_BIND_FAILED | EVENT_ACCEPTED | EVENT_ACCEPT_FAILED |
+            EVENT_CLOSED | EVENT_CLOSE_FAILED | EVENT_DISCONNECTED | EVENT_MONITOR_STOPPED;
 
     /**
      * @return Major version number of the ZMQ library.
@@ -1335,6 +1357,8 @@ public class ZMQ {
          * @param addr the endpoint to disconnect from.
          */
         public native void disconnect(String addr);
+        
+        public native boolean monitor(String addr, int events);
 
         /**
          * Send a message.
@@ -1582,7 +1606,7 @@ public class ZMQ {
         private long getSocketHandle() {
             return this.socketHandle;
         }
-
+        
         /** Opaque data used by JNI driver. */
         private long socketHandle;
         private final Context context;
@@ -1625,7 +1649,7 @@ public class ZMQ {
         private static final int PLAIN_PASSWORD = 46;
         private static final int CONFLATE = 54;
         private static final int ZAP_DOMAIN = 55;
-
+        
     }
 
     public static class PollItem {
@@ -2051,5 +2075,49 @@ public class ZMQ {
 
         private static final int SIZE_DEFAULT = 32;
         private static final int SIZE_INCREMENT = 16;
+    }
+    
+    public static class Event {
+        private static native void nativeInit();
+
+        static {
+            nativeInit();
+        }
+        
+        private final int event;
+        private final Object value;
+        private final String address;
+        
+        private Event(int event, int value, String address) {
+            this(event, Integer.valueOf(value), address);
+        }
+
+        public Event(int event, Object value, String address) {
+            this.event = event;
+            this.value = value;
+            this.address = address;
+        }
+
+        public int getEvent() {
+            return event;
+        }
+
+        public Object getValue() {
+            return value;
+        }
+
+        public String getAddress() {
+            return address;
+        }
+        
+        private static native Event read(long socket, int flags);
+        
+        public static Event read(Socket socket, int flags) {
+            return read(socket.socketHandle, 0);
+        }
+        
+        public static Event read(Socket socket) {
+            return read(socket, 0);
+        }
     }
 }

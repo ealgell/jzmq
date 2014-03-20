@@ -26,6 +26,7 @@ JZMQ_H_FILES = \
 	org_zeromq_ZMQ.h \
 	org_zeromq_ZMQ_Context.h \
 	org_zeromq_ZMQ_Error.h \
+	org_zeromq_ZMQ_Event.h \
 	org_zeromq_ZMQ_PollItem.h \
 	org_zeromq_ZMQ_Poller.h \
 	org_zeromq_ZMQ_Socket.h
