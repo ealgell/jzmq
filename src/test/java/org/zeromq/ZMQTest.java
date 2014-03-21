@@ -1,5 +1,8 @@
 package org.zeromq;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.charset.CharacterCodingException;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -7,12 +10,9 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.charset.CharacterCodingException;
-
 import org.junit.Test;
 import org.zeromq.ZMQ.Context;
+import org.zeromq.ZMQ.Event;
 import org.zeromq.ZMQ.Poller;
 import org.zeromq.ZMQ.Socket;
 
@@ -603,6 +603,250 @@ public class ZMQTest {
         poller.unregister(socketOne);
         poller.unregister(socketTwo);
         
+        context.term();
+    }
+    
+    @Test
+    public void testEventConnected() {
+        if (ZMQ.version_full() < ZMQ.make_version(3, 2, 2)) // Monitor added in 3.2.2
+            return;
+        
+        Context context = ZMQ.context(1);
+        Event event;
+        
+        Socket helper = context.socket(ZMQ.REQ);
+        helper.bind("tcp://127.0.0.1:6750");
+        
+        Socket socket = context.socket(ZMQ.REP);
+        Socket monitor = context.socket(ZMQ.PAIR);
+        monitor.setReceiveTimeOut(100);
+        
+        assertTrue(socket.monitor("inproc://monitor.socket", ZMQ.EVENT_CONNECTED));
+        monitor.connect("inproc://monitor.socket");
+        
+        socket.connect("tcp://127.0.0.1:6750");
+        event = Event.read(monitor, ZMQ.DONTWAIT);
+        assertNotNull("No event was received", event);
+        assertEquals(ZMQ.EVENT_CONNECTED, event.getEvent());
+        
+        helper.close();
+        socket.close();
+        monitor.close();
+        context.term();
+    }
+    
+    @Test
+    public void testEventConnectDelayed() {
+        if (ZMQ.version_full() < ZMQ.make_version(3, 2, 2)) // Monitor added in 3.2.2
+            return;
+        
+        Context context = ZMQ.context(1);
+        Event event;
+        
+        Socket socket = context.socket(ZMQ.REP);
+        Socket monitor = context.socket(ZMQ.PAIR);
+        monitor.setReceiveTimeOut(100);
+        
+        assertTrue(socket.monitor("inproc://monitor.socket", ZMQ.EVENT_DELAYED));
+        monitor.connect("inproc://monitor.socket");
+        
+        socket.connect("tcp://127.0.0.1:6751");
+        event = Event.read(monitor, ZMQ.DONTWAIT);
+        assertNotNull("No event was received", event);
+        assertEquals(ZMQ.EVENT_DELAYED, event.getEvent());
+        
+        socket.close();
+        monitor.close();
+        context.term();
+    }
+    
+    @Test
+    public void testEventConnectRetried() {
+        if (ZMQ.version_full() < ZMQ.make_version(3, 2, 2)) // Monitor added in 3.2.2
+            return;
+        
+        Context context = ZMQ.context(1);
+        Event event;
+        
+        Socket socket = context.socket(ZMQ.REP);
+        Socket monitor = context.socket(ZMQ.PAIR);
+        monitor.setReceiveTimeOut(100);
+        
+        assertTrue(socket.monitor("inproc://monitor.socket", ZMQ.EVENT_RETRIED));
+        monitor.connect("inproc://monitor.socket");
+        
+        socket.connect("tcp://127.0.0.1:6752");
+        event = Event.read(monitor, ZMQ.DONTWAIT);
+        assertNotNull("No event was received", event);
+        assertEquals(ZMQ.EVENT_RETRIED, event.getEvent());
+        
+        socket.close();
+        monitor.close();
+        context.term();
+    }
+    
+    @Test
+    public void testEventListening() {
+        if (ZMQ.version_full() < ZMQ.make_version(3, 2, 2)) // Monitor added in 3.2.2
+            return;
+        
+        Context context = ZMQ.context(1);
+        Event event;
+        
+        Socket socket = context.socket(ZMQ.REP);
+        Socket monitor = context.socket(ZMQ.PAIR);
+        monitor.setReceiveTimeOut(100);
+        
+        assertTrue(socket.monitor("inproc://monitor.socket", ZMQ.EVENT_LISTENING));
+        monitor.connect("inproc://monitor.socket");
+        
+        socket.bind("tcp://127.0.0.1:6753");
+        event = Event.read(monitor, ZMQ.DONTWAIT);
+        assertNotNull("No event was received", event);
+        assertEquals(ZMQ.EVENT_LISTENING, event.getEvent());
+        
+        socket.close();
+        monitor.close();
+        context.term();
+    }
+    
+    @Test
+    public void testEventBindFailed() {
+        if (ZMQ.version_full() < ZMQ.make_version(3, 2, 2)) // Monitor added in 3.2.2
+            return;
+        
+        Context context = ZMQ.context(1);
+        ZMQ.Event event;
+                
+        Socket helper = context.socket(ZMQ.REP);
+        helper.bind("tcp://127.0.0.1:6754");
+        
+        Socket socket = context.socket(ZMQ.REP);
+        Socket monitor = context.socket(ZMQ.PAIR);
+        monitor.setReceiveTimeOut(100);
+        
+        assertTrue(socket.monitor("inproc://monitor.socket", ZMQ.EVENT_BIND_FAILED));
+        monitor.connect("inproc://monitor.socket");
+        
+        try {
+            socket.bind("tcp://127.0.0.1:6754");
+        } catch (ZMQException ex) {}
+        event = ZMQ.Event.read(monitor, ZMQ.DONTWAIT);
+        assertNotNull("No event was received", event);
+        assertEquals(ZMQ.EVENT_BIND_FAILED, event.getEvent());
+        
+        helper.close();
+        socket.close();
+        monitor.close();
+        context.term();
+    }
+    
+    @Test
+    public void testEventAccepted() {
+        if (ZMQ.version_full() < ZMQ.make_version(3, 2, 2)) // Monitor added in 3.2.2
+            return;
+        
+        Context context = ZMQ.context(1);
+        Event event;
+        
+        Socket socket = context.socket(ZMQ.REP);
+        Socket monitor = context.socket(ZMQ.PAIR);
+        Socket helper = context.socket(ZMQ.REQ);
+        monitor.setReceiveTimeOut(100);
+        
+        assertTrue(socket.monitor("inproc://monitor.socket", ZMQ.EVENT_ACCEPTED));
+        monitor.connect("inproc://monitor.socket");
+        
+        socket.bind("tcp://127.0.0.1:6755");
+
+        helper.connect("tcp://127.0.0.1:6755");
+        event = Event.read(monitor, ZMQ.DONTWAIT);
+        assertNotNull("No event was received", event);
+        assertEquals(ZMQ.EVENT_ACCEPTED, event.getEvent());
+        
+        helper.close();
+        socket.close();
+        monitor.close();
+        context.term();
+    }
+    
+    @Test
+    public void testEventClosed() {
+        if (ZMQ.version_full() < ZMQ.make_version(3, 2, 2)) // Monitor added in 3.2.2
+            return;
+        
+        Context context = ZMQ.context(1);
+        Event event;
+        
+        Socket socket = context.socket(ZMQ.REP);
+        Socket monitor = context.socket(ZMQ.PAIR);
+        monitor.setReceiveTimeOut(100);
+        
+        socket.bind("tcp://127.0.0.1:6756");
+        
+        assertTrue(socket.monitor("inproc://monitor.socket", ZMQ.EVENT_CLOSED));
+        monitor.connect("inproc://monitor.socket");
+        
+        socket.close();
+        event = Event.read(monitor, ZMQ.DONTWAIT);
+        assertNotNull("No event was received", event);
+        assertEquals(ZMQ.EVENT_CLOSED, event.getEvent());
+        
+        monitor.close();
+        context.term();
+    }
+    
+    @Test
+    public void testEventDisconnected() {
+        if (ZMQ.version_full() < ZMQ.make_version(3, 2, 2)) // Monitor added in 3.2.2
+            return;
+        
+        Context context = ZMQ.context(1);
+        Event event;
+        
+        Socket socket = context.socket(ZMQ.REP);
+        Socket monitor = context.socket(ZMQ.PAIR);
+        Socket helper = context.socket(ZMQ.REQ);
+        monitor.setReceiveTimeOut(100);
+        
+        socket.bind("tcp://127.0.0.1:6757");
+        helper.connect("tcp://127.0.0.1:6757");
+        
+        assertTrue(socket.monitor("inproc://monitor.socket", ZMQ.EVENT_DISCONNECTED));
+        monitor.connect("inproc://monitor.socket");
+        
+        helper.close();
+        event = Event.read(monitor, ZMQ.DONTWAIT);
+        assertNotNull("No event was received", event);
+        assertEquals(ZMQ.EVENT_DISCONNECTED, event.getEvent());
+        
+        socket.close();
+        monitor.close();
+        context.term();
+    }
+    
+    @Test
+    public void testEventMonitorStopped() {
+        if (ZMQ.version_full() < ZMQ.make_version(4, 0, 0)) // EVENT_MONITOR_STOPPED added in 4.0.0
+            return;
+        
+        Context context = ZMQ.context(1);
+        Event event;
+        
+        Socket socket = context.socket(ZMQ.REP);
+        Socket monitor = context.socket(ZMQ.PAIR);
+        monitor.setReceiveTimeOut(100);
+        
+        assertTrue(socket.monitor("inproc://monitor.socket", ZMQ.EVENT_MONITOR_STOPPED));
+        monitor.connect("inproc://monitor.socket");
+        
+        socket.monitor(null, 0);
+        event = Event.read(monitor, ZMQ.DONTWAIT);
+        assertNotNull("No event was received", event);
+        assertEquals(ZMQ.EVENT_MONITOR_STOPPED, event.getEvent());
+        
+        socket.close();
+        monitor.close();
         context.term();
     }
 }

@@ -1,88 +1,135 @@
 #include <assert.h>
-
 #include <zmq.h>
+#include <cstdlib>
+#include <cstring>
 
 #include "jzmq.hpp"
 #include "util.hpp"
 #include "org_zeromq_ZMQ_Event.h"
 
 static jmethodID constructor;
-static jstring empty_addr;
 
 JNIEXPORT void JNICALL
 Java_org_zeromq_ZMQ_00024Event_nativeInit (JNIEnv *env, jclass cls)
 {
-    constructor = env->GetMethodID(cls, "<init>", "(I;I;Ljava/lang/String)V");
-    assert (constructor);
-    empty_addr = env->NewStringUTF("");
-    assert (empty_addr);
+    constructor = env->GetMethodID(cls, "<init>", "(IILjava/lang/String;)V");
+    assert(constructor);
+}
+
+static zmq_msg_t*
+read_msg(JNIEnv *env, void *socket, zmq_msg_t *msg, int flags)
+{
+    int rc = zmq_msg_init (msg);
+    if (rc != 0) {
+        raise_exception (env, zmq_errno());
+        return NULL;
+    }
+
+#if ZMQ_VERSION >= ZMQ_MAKE_VERSION(3,0,0)
+    rc = zmq_recvmsg (socket, msg, flags);
+#else
+    rc = zmq_recv (socket, msg, flags);
+#endif
+    int err = zmq_errno();
+    if (rc < 0 && err == EAGAIN) {
+        rc = zmq_msg_close (msg);
+        err = zmq_errno();
+        if (rc != 0) {
+            raise_exception (env, err);
+            return NULL;
+        }
+        return NULL;
+    }
+    if (rc < 0) {
+        raise_exception (env, err);
+        rc = zmq_msg_close (msg);
+        err = zmq_errno();
+        if (rc != 0) {
+            raise_exception (env, err);
+            return NULL;
+        }
+        return NULL;
+    }
+    return msg;
 }
 
 JNIEXPORT jobject JNICALL
 Java_org_zeromq_ZMQ_00024Event_read (JNIEnv *env, jclass cls, jlong socket, jint flags)
 {
+#if ZMQ_VERSION >= ZMQ_MAKE_VERSION(3,2,2)
+    zmq_event_t event;
+    zmq_msg_t event_msg;
+
+    // read event message
+    if (!read_msg(env, (void *) socket, &event_msg, flags))
+        return NULL;
 #if ZMQ_VERSION >= ZMQ_MAKE_VERSION(4,0,0)
-    zmq_event_t event;
-    char addr[1025];
-
-    zmq_msg_t event_msg;  // binary part
-    zmq_msg_init (event_msg);
-
-    zmq_msg_t addr_msg;  //  address part
-    zmq_msg_init (&addr_msg);
-
-    rc = zmq_msg_recv (&event_msg, s, 0);
-    if (rc < 0) {
-        raise_exception(env, zmq_errno());
-        return;
-    }
     assert (zmq_msg_more(&event_msg) != 0);
-    rc = zmq_msg_recv (&addr_msg, s, 0);
-    if (rc < 0) {
-        raise_exception(env, zmq_errno());
-        return;
-    }
-    assert (rc != -1);
-    assert (zmq_msg_more(&addr_msg) == 0);
-    // copy binary data to event struct
-    memcpy (&event, zmq_msg_data (&event_msg), sizeof (event));
-    // copy address part
-    const size_t len = zmq_msg_size(&msg2) ;
-    ep = memcpy(ep, zmq_msg_data(&msg2), len);
-    *(ep + len) = 0 ;
-#elif ZMQ_VERSION >= ZMQ_MAKE_VERSION(3,2,2)
-    zmq_event_t event;
+#else
+    assert (zmq_msg_more(&event_msg) == 0);
+#endif
 
-    zmq_msg_t msg;
-    zmq_msg_init (&msg);
-    rc = zmq_recvmsg ((void *) socket, &msg, flags);
-    if (rc < 0) {
+    // copy event data to event struct
+    memcpy (&event, zmq_msg_data (&event_msg), sizeof (event));
+
+    if (zmq_msg_close(&event_msg) < 0) {
         raise_exception(env, zmq_errno());
-        return;
+        return NULL;
     }
-    memcpy (&event, zmq_msg_data (&msg), sizeof (event));
+#if ZMQ_VERSION >= ZMQ_MAKE_VERSION(4,0,0)
+    char addr_s[1025];
+    char *addr_p;
+    zmq_msg_t addr_msg;
+
+    // read address message
+    if (!read_msg(env, (void *) socket, &addr_msg, flags))
+        return NULL;
+    assert (zmq_msg_more(&addr_msg) == 0);
+
+    // copy the address string
+    const size_t len = zmq_msg_size(&addr_msg);
+
+    addr_p = (char *)(len > sizeof(addr_s) ? malloc(len) : &addr_s);
+    memcpy(addr_p, zmq_msg_data(&addr_msg), len);
+    *(addr_p + len) = '\0';
+
+    if (zmq_msg_close(&addr_msg) < 0) {
+        raise_exception(env, zmq_errno());
+        return NULL;
+    }
+
+    jstring addr = env->NewStringUTF(addr_p);
+    if (len > sizeof(addr_s))
+        free(addr_p);
+    assert(addr);
+
+    return env->NewObject(cls, constructor, event.event, event.value, addr);
+#else
+    // the addr part is a pointer to a c string that libzmq might have already called free on
+    // it is not to be trusted so better not use it at all
     switch (event.event) {
     case ZMQ_EVENT_CONNECTED:
-        return env->NewObject(cls, constructor, event.event, event.data.connected.fd, empty_addr);
+        return env->NewObject(cls, constructor, event.event, event.data.connected.fd, NULL);
     case ZMQ_EVENT_CONNECT_DELAYED:
-        return env->NewObject(cls, constructor, event.event, event.data.connect_delayed.err, empty_addr);
+        return env->NewObject(cls, constructor, event.event, event.data.connect_delayed.err, NULL);
     case ZMQ_EVENT_CONNECT_RETRIED:
-        return env->NewObject(cls, constructor, event.event, event.data.connect_retried.interval, empty_addr);
+        return env->NewObject(cls, constructor, event.event, event.data.connect_retried.interval, NULL);
     case ZMQ_EVENT_LISTENING:
-        return env->NewObject(cls, constructor, event.event, event.data.listening.fd, empty_addr);
+        return env->NewObject(cls, constructor, event.event, event.data.listening.fd, NULL);
     case ZMQ_EVENT_BIND_FAILED:
-        return env->NewObject(cls, constructor, event.event, event.data.bind_failed.err, empty_addr);
+        return env->NewObject(cls, constructor, event.event, event.data.bind_failed.err, NULL);
     case ZMQ_EVENT_ACCEPTED:
-        return env->NewObject(cls, constructor, event.event, event.data.accepted.fd, empty_addr);
+        return env->NewObject(cls, constructor, event.event, event.data.accepted.fd, NULL);
     case ZMQ_EVENT_ACCEPT_FAILED:
-        return env->NewObject(cls, constructor, event.event, event.data.accept_failed.err, empty_addr);
+        return env->NewObject(cls, constructor, event.event, event.data.accept_failed.err, NULL);
     case ZMQ_EVENT_CLOSED:
-        return env->NewObject(cls, constructor, event.event, event.data.closed.fd, empty_addr);
+        return env->NewObject(cls, constructor, event.event, event.data.closed.fd, NULL);
     case ZMQ_EVENT_CLOSE_FAILED:
-        return env->NewObject(cls, constructor, event.event, event.data.close_failed.err, empty_addr);
+        return env->NewObject(cls, constructor, event.event, event.data.close_failed.err, NULL);
     case ZMQ_EVENT_DISCONNECTED:
-        return env->NewObject(cls, constructor, event.event, event.data.disconnected.fd, empty_addr);
+        return env->NewObject(cls, constructor, event.event, event.data.disconnected.fd, NULL);
     }
-#endif
-    return;
+#endif // ZMQ_VERSION >= ZMQ_MAKE_VERSION(4,0,0)
+#endif // ZMQ_VERSION >= ZMQ_MAKE_VERSION(3,2,2)
+    return NULL;
 }

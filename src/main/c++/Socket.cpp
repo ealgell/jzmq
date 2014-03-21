@@ -873,11 +873,7 @@ JNIEXPORT jboolean JNICALL Java_org_zeromq_ZMQ_00024Socket_monitor (JNIEnv *env,
 #if ZMQ_VERSION >= ZMQ_MAKE_VERSION(3,2,0)
     void *socket = get_socket (env, obj);
 
-    const char *c_addr = env->GetStringUTFChars (addr, NULL);
-    if (c_addr == NULL) {
-        raise_exception (env, EINVAL);
-        return JNI_FALSE;
-    }
+    const char *c_addr = addr ? env->GetStringUTFChars (addr, NULL) : NULL;
 
     int rc = zmq_socket_monitor(socket , c_addr, events);
     int err = rc < 0 ? zmq_errno() : 0;

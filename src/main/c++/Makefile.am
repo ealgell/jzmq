@@ -20,6 +20,7 @@ JZMQ_CPP_FILES = \
 	Context.cpp \
 	Socket.cpp \
 	Poller.cpp \
+	Event.cpp \
 	util.cpp
 
 JZMQ_H_FILES = \

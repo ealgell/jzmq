@@ -2089,7 +2089,7 @@ public class ZMQ {
         private final String address;
         
         private Event(int event, int value, String address) {
-            this(event, Integer.valueOf(value), address);
+            this(event, Integer.valueOf(value), address != null ? address : "");
         }
 
         public Event(int event, Object value, String address) {
