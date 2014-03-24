@@ -68,7 +68,7 @@ Java_org_zeromq_ZMQ_00024Event_read (JNIEnv *env, jclass cls, jlong socket, jint
     assert (zmq_msg_more(&event_msg) != 0);
 
     // copy event data to event struct
-    char *data = zmq_msg_data(&event_msg);
+    char *data = (char *) zmq_msg_data(&event_msg);
     memcpy(&event.event, data, sizeof(event.event));
     memcpy(&event.value, data + sizeof(event.event), sizeof(event.value));
 
