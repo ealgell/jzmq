@@ -63,20 +63,20 @@ Java_org_zeromq_ZMQ_00024Event_read (JNIEnv *env, jclass cls, jlong socket, jint
     // read event message
     if (!read_msg(env, (void *) socket, &event_msg, flags))
         return NULL;
+
 #if ZMQ_VERSION >= ZMQ_MAKE_VERSION(4,0,0)
     assert (zmq_msg_more(&event_msg) != 0);
-#else
-    assert (zmq_msg_more(&event_msg) == 0);
-#endif
 
     // copy event data to event struct
-    memcpy (&event, zmq_msg_data (&event_msg), sizeof (event));
+    char *data = zmq_msg_data(&event_msg);
+    memcpy(&event.event, data, sizeof(event.event));
+    memcpy(&event.value, data + sizeof(event.event), sizeof(event.value));
 
     if (zmq_msg_close(&event_msg) < 0) {
         raise_exception(env, zmq_errno());
         return NULL;
     }
-#if ZMQ_VERSION >= ZMQ_MAKE_VERSION(4,0,0)
+
     char addr_s[1025];
     char *addr_p;
     zmq_msg_t addr_msg;
@@ -105,6 +105,16 @@ Java_org_zeromq_ZMQ_00024Event_read (JNIEnv *env, jclass cls, jlong socket, jint
 
     return env->NewObject(cls, constructor, event.event, event.value, addr);
 #else
+    assert (zmq_msg_more(&event_msg) == 0);
+
+    // copy event data to event struct
+    memcpy (&event, zmq_msg_data (&event_msg), sizeof(event));
+
+    if (zmq_msg_close(&event_msg) < 0) {
+        raise_exception(env, zmq_errno());
+        return NULL;
+    }
+
     // the addr part is a pointer to a c string that libzmq might have already called free on
     // it is not to be trusted so better not use it at all
     switch (event.event) {
@@ -128,8 +138,11 @@ Java_org_zeromq_ZMQ_00024Event_read (JNIEnv *env, jclass cls, jlong socket, jint
         return env->NewObject(cls, constructor, event.event, event.data.close_failed.err, NULL);
     case ZMQ_EVENT_DISCONNECTED:
         return env->NewObject(cls, constructor, event.event, event.data.disconnected.fd, NULL);
+    default:
+        return NULL;
     }
 #endif // ZMQ_VERSION >= ZMQ_MAKE_VERSION(4,0,0)
-#endif // ZMQ_VERSION >= ZMQ_MAKE_VERSION(3,2,2)
+#else
     return NULL;
+#endif // ZMQ_VERSION >= ZMQ_MAKE_VERSION(3,2,2)
 }
