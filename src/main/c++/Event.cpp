@@ -77,8 +77,8 @@ Java_org_zeromq_ZMQ_00024Event_recv (JNIEnv *env, jclass cls, jlong socket, jint
         return NULL;
     }
 
-    char addr_s[1025];
-    char *addr_p;
+    char addr[1025];
+    char *paddr;
     zmq_msg_t addr_msg;
 
     // read address message
@@ -89,18 +89,18 @@ Java_org_zeromq_ZMQ_00024Event_recv (JNIEnv *env, jclass cls, jlong socket, jint
     // copy the address string
     const size_t len = zmq_msg_size(&addr_msg);
 
-    addr_p = (char *)(len > sizeof(addr_s) ? malloc(len) : &addr_s);
-    memcpy(addr_p, zmq_msg_data(&addr_msg), len);
-    *(addr_p + len) = '\0';
+    paddr = (char *)(len > sizeof(addr) ? malloc(len) : &addr);
+    memcpy(paddr, zmq_msg_data(&addr_msg), len);
+    *(paddr + len) = '\0';
 
     if (zmq_msg_close(&addr_msg) < 0) {
         raise_exception(env, zmq_errno());
         return NULL;
     }
 
-    jstring addr = env->NewStringUTF(addr_p);
-    if (len > sizeof(addr_s))
-        free(addr_p);
+    jstring addr = env->NewStringUTF(paddr);
+    if (len > sizeof(addr))
+        free(paddr);
     assert(addr);
 
     return env->NewObject(cls, constructor, event.event, event.value, addr);

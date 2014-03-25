@@ -615,7 +615,7 @@ public class ZMQTest {
         Event event;
         
         Socket helper = context.socket(ZMQ.REQ);
-        helper.bind("tcp://127.0.0.1:6750");
+        int port = helper.bindToRandomPort("tcp://127.0.0.1");
         
         Socket socket = context.socket(ZMQ.REP);
         Socket monitor = context.socket(ZMQ.PAIR);
@@ -624,7 +624,7 @@ public class ZMQTest {
         assertTrue(socket.monitor("inproc://monitor.socket", ZMQ.EVENT_CONNECTED));
         monitor.connect("inproc://monitor.socket");
         
-        socket.connect("tcp://127.0.0.1:6750");
+        socket.connect("tcp://127.0.0.1:" + port);
         event = Event.recv(monitor);
         assertNotNull("No event was received", event);
         assertEquals(ZMQ.EVENT_CONNECTED, event.getEvent());
@@ -647,13 +647,13 @@ public class ZMQTest {
         Socket monitor = context.socket(ZMQ.PAIR);
         monitor.setReceiveTimeOut(100);
         
-        assertTrue(socket.monitor("inproc://monitor.socket", ZMQ.EVENT_DELAYED));
+        assertTrue(socket.monitor("inproc://monitor.socket", ZMQ.EVENT_CONNECT_DELAYED));
         monitor.connect("inproc://monitor.socket");
         
         socket.connect("tcp://127.0.0.1:6751");
         event = Event.recv(monitor);
         assertNotNull("No event was received", event);
-        assertEquals(ZMQ.EVENT_DELAYED, event.getEvent());
+        assertEquals(ZMQ.EVENT_CONNECT_DELAYED, event.getEvent());
         
         socket.close();
         monitor.close();
@@ -672,13 +672,13 @@ public class ZMQTest {
         Socket monitor = context.socket(ZMQ.PAIR);
         monitor.setReceiveTimeOut(100);
         
-        assertTrue(socket.monitor("inproc://monitor.socket", ZMQ.EVENT_RETRIED));
+        assertTrue(socket.monitor("inproc://monitor.socket", ZMQ.EVENT_CONNECT_RETRIED));
         monitor.connect("inproc://monitor.socket");
         
         socket.connect("tcp://127.0.0.1:6752");
         event = Event.recv(monitor);
         assertNotNull("No event was received", event);
-        assertEquals(ZMQ.EVENT_RETRIED, event.getEvent());
+        assertEquals(ZMQ.EVENT_CONNECT_RETRIED, event.getEvent());
         
         socket.close();
         monitor.close();
@@ -700,7 +700,7 @@ public class ZMQTest {
         assertTrue(socket.monitor("inproc://monitor.socket", ZMQ.EVENT_LISTENING));
         monitor.connect("inproc://monitor.socket");
         
-        socket.bind("tcp://127.0.0.1:6753");
+        socket.bindToRandomPort("tcp://127.0.0.1");
         event = Event.recv(monitor);
         assertNotNull("No event was received", event);
         assertEquals(ZMQ.EVENT_LISTENING, event.getEvent());
@@ -719,7 +719,7 @@ public class ZMQTest {
         ZMQ.Event event;
                 
         Socket helper = context.socket(ZMQ.REP);
-        helper.bind("tcp://127.0.0.1:6754");
+        int port = helper.bindToRandomPort("tcp://127.0.0.1");
         
         Socket socket = context.socket(ZMQ.REP);
         Socket monitor = context.socket(ZMQ.PAIR);
@@ -729,7 +729,7 @@ public class ZMQTest {
         monitor.connect("inproc://monitor.socket");
         
         try {
-            socket.bind("tcp://127.0.0.1:6754");
+            socket.bind("tcp://127.0.0.1:" + port);
         } catch (ZMQException ex) {}
         event = ZMQ.Event.recv(monitor);
         assertNotNull("No event was received", event);
@@ -757,9 +757,9 @@ public class ZMQTest {
         assertTrue(socket.monitor("inproc://monitor.socket", ZMQ.EVENT_ACCEPTED));
         monitor.connect("inproc://monitor.socket");
         
-        socket.bind("tcp://127.0.0.1:6755");
+        int port = socket.bindToRandomPort("tcp://127.0.0.1");
 
-        helper.connect("tcp://127.0.0.1:6755");
+        helper.connect("tcp://127.0.0.1:" + port);
         event = Event.recv(monitor);
         assertNotNull("No event was received", event);
         assertEquals(ZMQ.EVENT_ACCEPTED, event.getEvent());
@@ -782,7 +782,7 @@ public class ZMQTest {
         Socket monitor = context.socket(ZMQ.PAIR);
         monitor.setReceiveTimeOut(100);
         
-        socket.bind("tcp://127.0.0.1:6756");
+        socket.bindToRandomPort("tcp://127.0.0.1");
         
         assertTrue(socket.monitor("inproc://monitor.socket", ZMQ.EVENT_CLOSED));
         monitor.connect("inproc://monitor.socket");
@@ -809,8 +809,8 @@ public class ZMQTest {
         Socket helper = context.socket(ZMQ.REQ);
         monitor.setReceiveTimeOut(100);
         
-        socket.bind("tcp://127.0.0.1:6757");
-        helper.connect("tcp://127.0.0.1:6757");
+        int port = socket.bindToRandomPort("tcp://127.0.0.1");
+        helper.connect("tcp://127.0.0.1:" + port);
         
         assertTrue(socket.monitor("inproc://monitor.socket", ZMQ.EVENT_DISCONNECTED));
         monitor.connect("inproc://monitor.socket");
