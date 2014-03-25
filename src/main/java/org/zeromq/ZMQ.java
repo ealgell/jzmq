@@ -2077,6 +2077,10 @@ public class ZMQ {
         private static final int SIZE_INCREMENT = 16;
     }
     
+   /**
+     * Inner class: Event.
+     * The event class reads events from a monitor socket.
+     */
     public static class Event {
         private static native void nativeInit();
 
@@ -2110,14 +2114,28 @@ public class ZMQ {
             return address;
         }
         
-        private static native Event read(long socket, int flags);
+        private static native Event recv(long socket, int flags) throws ZMQException;
         
-        public static Event read(Socket socket, int flags) {
-            return read(socket.socketHandle, 0);
+        /**
+         * Receive an event from a monitor socket.
+         * @param socket the socket to read from
+         * @param flags the flags to apply to the receive operation.
+         * @return the received event or null if no message was received.
+         * @throws ZMQException
+         */
+        public static Event recv(Socket socket, int flags) throws ZMQException {
+            return Event.recv(socket.socketHandle, flags);
         }
         
-        public static Event read(Socket socket) {
-            return read(socket, 0);
+         /**
+         * Receive an event from a monitor socket.
+         * Does a blocking recv.
+         * @param socket the socket to read from
+         * @return the received event or null if no message was received.
+         * @throws ZMQException
+         */
+        public static Event recv(Socket socket) throws ZMQException {
+            return Event.recv(socket, 0);
         }
     }
 }

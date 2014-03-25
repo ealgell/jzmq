@@ -625,7 +625,7 @@ public class ZMQTest {
         monitor.connect("inproc://monitor.socket");
         
         socket.connect("tcp://127.0.0.1:6750");
-        event = Event.read(monitor, ZMQ.DONTWAIT);
+        event = Event.recv(monitor);
         assertNotNull("No event was received", event);
         assertEquals(ZMQ.EVENT_CONNECTED, event.getEvent());
         
@@ -651,7 +651,7 @@ public class ZMQTest {
         monitor.connect("inproc://monitor.socket");
         
         socket.connect("tcp://127.0.0.1:6751");
-        event = Event.read(monitor, ZMQ.DONTWAIT);
+        event = Event.recv(monitor);
         assertNotNull("No event was received", event);
         assertEquals(ZMQ.EVENT_DELAYED, event.getEvent());
         
@@ -676,7 +676,7 @@ public class ZMQTest {
         monitor.connect("inproc://monitor.socket");
         
         socket.connect("tcp://127.0.0.1:6752");
-        event = Event.read(monitor, ZMQ.DONTWAIT);
+        event = Event.recv(monitor);
         assertNotNull("No event was received", event);
         assertEquals(ZMQ.EVENT_RETRIED, event.getEvent());
         
@@ -701,7 +701,7 @@ public class ZMQTest {
         monitor.connect("inproc://monitor.socket");
         
         socket.bind("tcp://127.0.0.1:6753");
-        event = Event.read(monitor, ZMQ.DONTWAIT);
+        event = Event.recv(monitor);
         assertNotNull("No event was received", event);
         assertEquals(ZMQ.EVENT_LISTENING, event.getEvent());
         
@@ -731,7 +731,7 @@ public class ZMQTest {
         try {
             socket.bind("tcp://127.0.0.1:6754");
         } catch (ZMQException ex) {}
-        event = ZMQ.Event.read(monitor, ZMQ.DONTWAIT);
+        event = ZMQ.Event.recv(monitor);
         assertNotNull("No event was received", event);
         assertEquals(ZMQ.EVENT_BIND_FAILED, event.getEvent());
         
@@ -760,7 +760,7 @@ public class ZMQTest {
         socket.bind("tcp://127.0.0.1:6755");
 
         helper.connect("tcp://127.0.0.1:6755");
-        event = Event.read(monitor, ZMQ.DONTWAIT);
+        event = Event.recv(monitor);
         assertNotNull("No event was received", event);
         assertEquals(ZMQ.EVENT_ACCEPTED, event.getEvent());
         
@@ -788,7 +788,7 @@ public class ZMQTest {
         monitor.connect("inproc://monitor.socket");
         
         socket.close();
-        event = Event.read(monitor, ZMQ.DONTWAIT);
+        event = Event.recv(monitor);
         assertNotNull("No event was received", event);
         assertEquals(ZMQ.EVENT_CLOSED, event.getEvent());
         
@@ -816,7 +816,7 @@ public class ZMQTest {
         monitor.connect("inproc://monitor.socket");
         
         helper.close();
-        event = Event.read(monitor, ZMQ.DONTWAIT);
+        event = Event.recv(monitor);
         assertNotNull("No event was received", event);
         assertEquals(ZMQ.EVENT_DISCONNECTED, event.getEvent());
         
@@ -841,7 +841,7 @@ public class ZMQTest {
         monitor.connect("inproc://monitor.socket");
         
         socket.monitor(null, 0);
-        event = Event.read(monitor, ZMQ.DONTWAIT);
+        event = Event.recv(monitor);
         assertNotNull("No event was received", event);
         assertEquals(ZMQ.EVENT_MONITOR_STOPPED, event.getEvent());
         

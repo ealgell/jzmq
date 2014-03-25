@@ -54,7 +54,7 @@ read_msg(JNIEnv *env, void *socket, zmq_msg_t *msg, int flags)
 }
 
 JNIEXPORT jobject JNICALL
-Java_org_zeromq_ZMQ_00024Event_read (JNIEnv *env, jclass cls, jlong socket, jint flags)
+Java_org_zeromq_ZMQ_00024Event_recv (JNIEnv *env, jclass cls, jlong socket, jint flags)
 {
 #if ZMQ_VERSION >= ZMQ_MAKE_VERSION(3,2,2)
     zmq_event_t event;
